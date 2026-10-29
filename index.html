@@ -1,0 +1,821 @@
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    navy: { 700: '#1e3a8a', 800: '#1e293b', 900: '#0f172a' },
+                    sage: { 400: '#81b29a', 500: '#6b9080', 600: '#52796f', 700: '#354f52' },
+                    cream: { 50: '#fdfbf7', 100: '#f6f4eb' },
+                    gold: { 400: '#fbbf24', 500: '#f59e0b' }
+                },
+                fontFamily: {
+                    sans: ['Inter', 'sans-serif'],
+                    display: ['Poppins', 'sans-serif'],
+                }
+            }
+        }
+    }
+</script>
+
+<style>
+    body {
+        background-color: #fdfbf7;
+        font-family: 'Inter', sans-serif;
+        color: #1e293b;
+        overflow-x: hidden;
+        -webkit-tap-highlight-color: transparent;
+    }
+    h1, h2, h3, h4, h5, h6 { font-family: 'Poppins', sans-serif; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #fdfbf7; }
+    ::-webkit-scrollbar-thumb { background: #81b29a; border-radius: 10px; }
+    
+    /* Animations */
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+    .animate-float { animation: float 3s ease-in-out infinite; }
+    
+    @keyframes pulse-glow {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+        50% { box-shadow: 0 0 0 15px rgba(245, 158, 11, 0); }
+    }
+    .pulse-node { animation: pulse-glow 2s infinite; }
+
+    @keyframes slideInUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    .slide-up { animation: slideInUp 0.4s ease-out forwards; }
+
+    /* Map Connecting Line */
+    .map-line::after {
+        content: '';
+        position: absolute;
+        width: 4px;
+        background-color: #cbd5e1;
+        top: 50px;
+        bottom: -50px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: -1;
+    }
+    .map-line:last-child::after { display: none; }
+    
+    /* Glass Panel */
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.5);
+    }
+    .glass-dark {
+        background: rgba(15, 23, 42, 0.9);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+
+
+<!-- OVERLAYS & MODALS -->
+<!-- Custom Modal System (Replaces alert) -->
+<div id="custom-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-900/80 backdrop-blur-sm transition-opacity">
+    <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl transform scale-95 transition-transform duration-300" id="modal-content">
+        <div id="modal-icon" class="w-16 h-16 mx-auto rounded-full bg-gold-400/20 text-gold-500 flex items-center justify-center text-3xl mb-4">
+            <i class="fa-solid fa-bell"></i>
+        </div>
+        <h3 id="modal-title" class="text-xl font-bold text-navy-800 mb-2 font-display">Pemberitahuan</h3>
+        <p id="modal-desc" class="text-sm text-slate-600 mb-6">Pesan di sini.</p>
+        <button onclick="closeModal()" class="w-full bg-navy-800 hover:bg-navy-700 text-white font-semibold py-3 rounded-xl transition shadow-lg">
+            Mengerti
+        </button>
+    </div>
+</div>
+
+<!-- Level Up / Badge Overlay -->
+<div id="reward-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy-900/90 backdrop-blur-md">
+    <div class="text-center slide-up">
+        <div class="relative w-32 h-32 mx-auto mb-6">
+            <div class="absolute inset-0 bg-gold-400 rounded-full animate-ping opacity-20"></div>
+            <img id="reward-icon" src="" class="w-full h-full object-contain relative z-10 drop-shadow-2xl" alt="Reward">
+        </div>
+        <h2 class="text-3xl font-black text-white font-display tracking-wide mb-2 uppercase text-gold-400" id="reward-title">LENCANA DIDAPAT!</h2>
+        <p class="text-sage-400 text-lg mb-8" id="reward-desc">Anda resmi menjadi Junior Detective.</p>
+        <button onclick="closeReward()" class="bg-gold-500 hover:bg-gold-400 text-navy-900 font-bold px-8 py-3 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.5)] transition hover:scale-105">
+            Lanjutkan Petualangan
+        </button>
+    </div>
+</div>
+
+<!-- TOP NAVIGATION (Hidden on Splash/Cover) -->
+<nav id="top-nav" class="hidden sticky top-0 z-40 glass-panel border-b border-slate-200 px-4 py-3 shadow-sm">
+    <div class="max-w-4xl mx-auto flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-navy-800 text-white flex items-center justify-center text-sm shadow-md">
+                <i class="fa-solid fa-user-secret"></i>
+            </div>
+            <div>
+                <h1 id="nav-player-name" class="font-bold text-navy-800 text-sm font-display leading-tight">Detektif Muda</h1>
+                <p class="text-[10px] text-sage-600 font-semibold tracking-wide">LEVEL <span id="nav-player-level">1</span></p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="bg-gold-500/10 border border-gold-400 px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-star text-gold-500 text-xs"></i>
+                <span id="nav-player-xp" class="text-xs font-bold text-navy-800">0 XP</span>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- MAIN CONTENT AREA -->
+<div id="main-container" class="flex-grow w-full max-w-4xl mx-auto pb-24 relative">
+
+    <!-- ================= SCREEN: SPLASH & COVER ================= -->
+    <section id="screen-cover" class="min-h-screen flex flex-col items-center justify-center p-6 bg-navy-900 text-white relative overflow-hidden">
+        <!-- Background Elements -->
+        <div class="absolute top-0 right-0 w-64 h-64 bg-sage-500/20 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 left-0 w-80 h-80 bg-navy-700/40 rounded-full blur-3xl"></div>
+        
+        <div class="z-10 text-center w-full max-w-md slide-up">
+            <div class="inline-block bg-white/10 backdrop-blur border border-white/20 px-4 py-1.5 rounded-full text-xs font-medium text-sage-400 mb-6 tracking-widest uppercase">
+                Mata Pelajaran Sosiologi SMA/MA
+            </div>
+            
+            <!-- Main Title -->
+            <h1 class="text-4xl md:text-5xl font-black font-display leading-tight mb-2 tracking-tight">
+                SOCIOLOGY <br>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-sage-400 to-gold-400">INTERACTIVE</span> <br>
+                ADVENTURE
+            </h1>
+            <p class="text-slate-300 text-sm md:text-base font-light mb-8 italic">"Explore Society, Solve Social Mysteries!"</p>
+            
+            <!-- Abstract SVG Illustration -->
+            <div class="w-48 h-48 mx-auto mb-10 relative animate-float">
+                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" class="w-full h-full drop-shadow-2xl">
+                    <circle cx="100" cy="100" r="80" fill="#1e3a8a" opacity="0.3"/>
+                    <circle cx="100" cy="100" r="60" stroke="#81b29a" stroke-width="2" stroke-dasharray="6,6" fill="none" class="animate-[spin_20s_linear_infinite] origin-center"/>
+                    <!-- Connected Society Nodes -->
+                    <path d="M60 80 L100 40 L140 80 L100 120 Z" stroke="#fbbf24" stroke-width="2" fill="none"/>
+                    <path d="M100 120 L100 160 M60 80 L40 100 M140 80 L160 100" stroke="#81b29a" stroke-width="2" fill="none"/>
+                    <circle cx="100" cy="40" r="8" fill="#fbbf24"/>
+                    <circle cx="60" cy="80" r="8" fill="#fbbf24"/>
+                    <circle cx="140" cy="80" r="8" fill="#fbbf24"/>
+                    <circle cx="100" cy="120" r="8" fill="#fbbf24"/>
+                    <circle cx="100" cy="160" r="6" fill="#81b29a"/>
+                    <circle cx="40" cy="100" r="6" fill="#81b29a"/>
+                    <circle cx="160" cy="100" r="6" fill="#81b29a"/>
+                    <!-- Detective Icon Center -->
+                    <g transform="translate(85, 95) scale(0.6)">
+                        <path d="M25 0 C11 0 0 11 0 25 C0 39 11 50 25 50 C39 50 50 39 50 25 C50 11 39 0 25 0 Z M25 40 C16 40 9 33 9 24 C9 15 16 8 25 8 C34 8 41 15 41 24 C41 33 34 40 25 40 Z" fill="#ffffff"/>
+                        <path d="M42 42 L60 60" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+                    </g>
+                </svg>
+            </div>
+
+            <button onclick="showScreen('screen-setup')" class="w-full bg-gold-500 hover:bg-gold-400 text-navy-900 font-bold py-4 rounded-2xl text-lg shadow-[0_4px_20px_rgba(245,158,11,0.4)] transition transform hover:-translate-y-1 mb-4">
+                Mulai Petualangan
+            </button>
+        </div>
+    </section>
+
+    <!-- ================= SCREEN: SETUP PROFILE ================= -->
+    <section id="screen-setup" class="hidden min-h-screen flex flex-col items-center justify-center p-6 slide-up">
+        <div class="w-full max-w-md bg-white rounded-3xl p-8 shadow-xl border border-slate-100 text-center">
+            <div class="w-20 h-20 mx-auto bg-sage-500 rounded-full flex items-center justify-center text-white text-3xl mb-6 shadow-inner">
+                <i class="fa-solid fa-id-badge"></i>
+            </div>
+            <h2 class="text-2xl font-bold font-display text-navy-800 mb-2">ID Detektif Sosial</h2>
+            <p class="text-slate-500 text-sm mb-8">Daftarkan identitasmu sebelum memulai investigasi di masyarakat.</p>
+
+            <div class="space-y-4 text-left">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1 ml-1 uppercase">Nama Detektif</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-4 top-3.5 text-slate-400"></i>
+                        <input type="text" id="input-name" placeholder="Masukkan nama panggilanmu..." class="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-sage-500 focus:ring-1 focus:ring-sage-500 transition font-medium">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1 ml-1 uppercase">Kelas</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-users absolute left-4 top-3.5 text-slate-400"></i>
+                        <select id="input-class" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-sage-500 focus:ring-1 focus:ring-sage-500 transition font-medium appearance-none">
+                            <option value="" disabled selected>Pilih Kelas...</option>
+                            <option value="X-1">X-1 (Fase E)</option>
+                            <option value="X-2">X-2 (Fase E)</option>
+                            <option value="X-3">X-3 (Fase E)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="saveProfile()" class="w-full mt-8 bg-navy-800 hover:bg-navy-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                <span>Terbitkan ID Card</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </section>
+
+    <!-- ================= SCREEN: ADVENTURE MAP (DASHBOARD) ================= -->
+    <section id="screen-map" class="hidden p-4 pt-6 slide-up">
+        <div class="text-center mb-8">
+            <h2 class="text-2xl font-black font-display text-navy-800">Peta Petualangan</h2>
+            <p class="text-slate-500 text-sm mt-1">Selesaikan misi untuk membuka wilayah baru.</p>
+        </div>
+
+        <!-- Dynamic Map Generation Container -->
+        <div id="adventure-map-container" class="relative max-w-sm mx-auto py-4">
+            <!-- Map Nodes injected by JS -->
+        </div>
+    </section>
+
+    <!-- ================= SCREEN: MISSION INVESTIGATION ================= -->
+    <section id="screen-mission" class="hidden p-4 slide-up h-full flex flex-col">
+        <!-- Header Bar Misi -->
+        <div class="flex items-center gap-3 mb-4">
+            <button onclick="showScreen('screen-map')" class="w-10 h-10 rounded-full bg-white shadow flex items-center justify-center text-slate-500 hover:text-navy-800 transition">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <div>
+                <span id="mission-badge" class="text-[10px] font-bold text-sage-600 bg-sage-100 px-2 py-0.5 rounded uppercase tracking-wider">Level 1</span>
+                <h2 id="mission-title" class="text-lg font-bold font-display text-navy-800 leading-tight">Judul Misi</h2>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex-grow flex flex-col">
+            <!-- Image Header -->
+            <div class="h-32 bg-navy-800 relative flex items-center justify-center overflow-hidden">
+                <div class="absolute inset-0 opacity-30 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PHBhdGggZD0iTTAgMGgyMHYyMEgwem0xMCAxMGE1IDUgMCAxIDAgMC0xMCA1IDUgMCAwIDAgMCAxMHoiIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiLz48L3N2Zz4=')]"></div>
+                <i id="mission-icon" class="fa-solid fa-magnifying-glass text-5xl text-gold-400 relative z-10 drop-shadow-md"></i>
+            </div>
+
+            <div class="p-5 flex-grow overflow-y-auto">
+                <!-- Briefing / Fenomena -->
+                <h3 class="font-bold text-navy-800 flex items-center gap-2 mb-2 text-sm">
+                    <i class="fa-solid fa-folder-open text-sage-500"></i> Berkas Kasus
+                </h3>
+                <div id="mission-story" class="text-sm text-slate-600 leading-relaxed mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100 italic">
+                    Deskripsi fenomena atau cerita studi kasus.
+                </div>
+
+                <!-- Materi / Penyelidikan -->
+                <h3 class="font-bold text-navy-800 flex items-center gap-2 mb-2 text-sm">
+                    <i class="fa-solid fa-book-open text-sage-500"></i> Catatan Investigasi
+                </h3>
+                <div id="mission-theory" class="text-sm text-slate-700 leading-relaxed mb-6 prose prose-sm prose-slate max-w-none">
+                    Teori Sosiologi ringkas yang relevan.
+                </div>
+
+                <!-- Tantangan Interaktif -->
+                <div class="bg-navy-800 rounded-2xl p-5 shadow-inner text-white mt-auto">
+                    <h4 class="font-bold text-gold-400 flex items-center gap-2 mb-3 text-sm">
+                        <i class="fa-solid fa-puzzle-piece"></i> Tantangan Detektif
+                    </h4>
+                    <p id="mission-question" class="text-sm mb-4">Pertanyaan tantangan di sini.</p>
+                    
+                    <div id="mission-options" class="space-y-2">
+                        <!-- Options injected by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= SCREEN: KNOWLEDGE HUB ================= -->
+    <section id="screen-hub" class="hidden p-4 pt-6 slide-up">
+        <div class="text-center mb-6">
+            <h2 class="text-2xl font-black font-display text-navy-800">Knowledge Hub</h2>
+            <p class="text-slate-500 text-sm mt-1">Pusat Arsip Teori Sosiologi.</p>
+        </div>
+
+        <div class="space-y-3" id="hub-container">
+            <!-- Accordions injected by JS -->
+        </div>
+    </section>
+
+    <!-- ================= SCREEN: PROFILE & LEADERBOARD ================= -->
+    <section id="screen-profile" class="hidden p-4 pt-6 slide-up">
+        <div class="text-center mb-6">
+            <h2 class="text-2xl font-black font-display text-navy-800">Biro Pencapaian</h2>
+        </div>
+
+        <!-- Profile Card -->
+        <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 mb-6 flex items-center gap-4">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-navy-700 to-navy-900 text-gold-400 flex items-center justify-center text-3xl shadow-lg relative">
+                <i class="fa-solid fa-user-tie"></i>
+                <div class="absolute -bottom-2 -right-2 bg-gold-500 text-white text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-white">
+                    <span id="profile-level-badge">1</span>
+                </div>
+            </div>
+            <div class="flex-grow">
+                <h3 id="profile-name" class="font-bold font-display text-navy-800 text-lg leading-tight">Nama</h3>
+                <p id="profile-class" class="text-xs text-slate-500 mb-2">Kelas</p>
+                
+                <!-- Progress Bar XP -->
+                <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden relative">
+                    <div id="profile-xp-bar" class="bg-sage-500 h-full rounded-full transition-all duration-1000 w-0"></div>
+                </div>
+                <div class="flex justify-between text-[10px] text-slate-400 mt-1 font-semibold">
+                    <span id="profile-xp-text">0 XP</span>
+                    <span>Level Berikutnya</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Badges Section -->
+        <h4 class="font-bold text-navy-800 text-sm mb-3">Lencana Penyelidik</h4>
+        <div class="grid grid-cols-4 gap-3 mb-8" id="badges-container">
+            <!-- Badges injected by JS -->
+        </div>
+
+        <!-- Leaderboard -->
+        <h4 class="font-bold text-navy-800 text-sm mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-ranking-star text-gold-500"></i> Papan Peringkat Kelas
+        </h4>
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 border-b border-slate-100 text-slate-500 text-[10px] uppercase tracking-wider">
+                    <tr>
+                        <th class="px-4 py-3 text-center w-12">Pos</th>
+                        <th class="px-4 py-3">Detektif</th>
+                        <th class="px-4 py-3 text-right">XP</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-table" class="divide-y divide-slate-50">
+                    <!-- Leaderboard injected by JS -->
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</div> <!-- End Main Container -->
+
+<!-- BOTTOM NAVIGATION -->
+<nav id="bottom-nav" class="hidden fixed bottom-0 w-full max-w-4xl left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-md border-t border-slate-200 pb-safe z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+    <div class="flex justify-around items-center h-16 px-2">
+        <button onclick="showScreen('screen-map')" id="nav-btn-map" class="nav-btn flex flex-col items-center justify-center w-16 text-sage-600 transition">
+            <i class="fa-solid fa-map-location-dot text-xl mb-1"></i>
+            <span class="text-[9px] font-bold">Misi</span>
+        </button>
+        <button onclick="showScreen('screen-hub')" id="nav-btn-hub" class="nav-btn flex flex-col items-center justify-center w-16 text-slate-400 hover:text-sage-600 transition">
+            <i class="fa-solid fa-book-journal-whills text-xl mb-1"></i>
+            <span class="text-[9px] font-bold">Arsip</span>
+        </button>
+        <button onclick="showScreen('screen-profile')" id="nav-btn-profile" class="nav-btn flex flex-col items-center justify-center w-16 text-slate-400 hover:text-sage-600 transition">
+            <i class="fa-solid fa-id-card-clip text-xl mb-1"></i>
+            <span class="text-[9px] font-bold">Profil</span>
+        </button>
+    </div>
+</nav>
+
+<!-- Data & Application Logic -->
+<script>
+    // --- GOOGLE APPS SCRIPT CONFIGURATION ---
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyXWzYeosJLROz-Zy3o5gsVfSx3eDZ2s7GbEV7QDIaGxtDtEQAYGs8T81ZlFPDaPmVagA/exec";
+
+    // --- 1. STATE & DATA ---
+    let appState = {
+        currentUser: { name: "", class: "", xp: 0, level: 1, completedMissions: [] },
+        activeScreen: "screen-cover",
+        currentMissionId: null,
+        sessionAnswers: {} // Menyimpan detail inputan jawaban siswa per soal
+    };
+
+    const MISSIONS = [
+        {
+            id: "m1",
+            level: 1,
+            title: "Misteri Tradisi Huyula",
+            icon: "fa-users",
+            locked: false,
+            story: "Di Kabupaten Pohuwato, masyarakat pedesaan sering berkumpul untuk membangun rumah tetangga tanpa dibayar. Tradisi ini dikenal sebagai 'Huyula'. Sebagai detektif sosial muda, amati fenomena ini.",
+            theory: "<p><strong>Sosiologi</strong> mengkaji hubungan timbal balik antarmanusia dalam masyarakat. Salah satu objek kajian utamanya adalah <strong>Interaksi Sosial</strong>. Interaksi yang mengarah pada kerjasama, persatuan, dan kebersamaan disebut proses <strong>Asosiatif</strong>. Gotong royong adalah contoh nyata integrasi sosial yang memperkuat solidaritas.</p>",
+            challenge: {
+                question: "Berdasarkan catatan investigasi, tradisi 'Huyula' di Pohuwato termasuk ke dalam bentuk interaksi sosial apa?",
+                options: [
+                    { text: "A. Disosiatif (Konflik)", correct: false, feedback: "Huyula adalah gotong royong, bukan konflik." },
+                    { text: "B. Asosiatif (Kerjasama)", correct: true, feedback: "Tepat! Huyula mempererat persatuan masyarakat." },
+                    { text: "C. Akomodasi (Peredaan Tegang)", correct: false, feedback: "Akomodasi adalah meredakan konflik, Huyula adalah kerjasama murni." }
+                ]
+            },
+            xpReward: 50,
+            badge: { id: "b1", name: "Social Explorer", icon: "" }
+        },
+        {
+            id: "m2",
+            level: 2,
+            title: "Kasus Postingan Misterius",
+            icon: "fa-mobile-screen",
+            locked: true,
+            story: "Seorang siswa SMA di Marisa merasa dikucilkan karena teman-temannya menyebarkan rumor tidak benar tentang dirinya di grup WhatsApp kelas. Suasana kelas menjadi tegang dan terbagi menjadi dua kubu.",
+            theory: "<p>Tidak semua interaksi sosial berujung damai. Proses interaksi yang mengarah pada perpecahan, persaingan, atau pertentangan disebut proses <strong>Disosiatif</strong>.</p><ul class='list-disc pl-4 mt-2'><li><strong>Persaingan (Kompetisi):</strong> Berebut prestasi/sumber daya tanpa kekerasan.</li><li><strong>Kontravensi:</strong> Penolakan tersembunyi, rumor, atau fitnah (seperti *cyberbullying*).</li><li><strong>Konflik:</strong> Pertentangan terbuka untuk saling menjatuhkan.</li></ul>",
+            challenge: {
+                question: "Kasus penyebaran rumor di grup WA kelas yang menimbulkan ketegangan tersembunyi tergolong dalam bentuk interaksi...",
+                options: [
+                    { text: "A. Konflik Fisik Terbuka", correct: false, feedback: "Ini belum sampai pada kekerasan fisik terbuka." },
+                    { text: "B. Persaingan Sehat", correct: false, feedback: "Menyebarkan rumor bukan persaingan yang sehat." },
+                    { text: "C. Kontravensi", correct: true, feedback: "Benar! Kontravensi ditandai dengan kebencian tersembunyi dan penyebaran desas-desus." }
+                ]
+            },
+            xpReward: 80,
+            badge: { id: "b2", name: "Interaction Detective", icon: "" }
+        },
+        {
+            id: "m3",
+            level: 3,
+            title: "Aturan Tak Tertulis",
+            icon: "fa-scale-balanced",
+            locked: true,
+            story: "Saat upacara bendera, seorang siswa datang terlambat dan tidak memakai atribut lengkap. Ia ditegur oleh guru tata tertib dan mendapat sanksi membersihkan halaman sekolah. Siswa lain yang melihat kejadian tersebut enggan mengulangi kesalahan yang sama.",
+            theory: "<p>Masyarakat memiliki <strong>Nilai</strong> (sesuatu yang dianggap baik/buruk) dan <strong>Norma Sosial</strong> (aturan perilaku yang dilengkapi sanksi). Norma berfungsi untuk menciptakan ketertiban (keteraturan sosial). Sanksi diberikan agar masyarakat patuh pada nilai yang disepakati bersama.</p>",
+            challenge: {
+                question: "Sanksi yang diberikan kepada siswa terlambat berfungsi sebagai alat pengedali sosial. Tujuannya adalah...",
+                options: [
+                    { text: "A. Menciptakan keteraturan sosial (Social Order)", correct: true, feedback: "Tepat! Sanksi mencegah penyimpangan berulang agar tertib." },
+                    { text: "B. Membedakan status sosial siswa", correct: false, feedback: "Hukuman di sekolah bertujuan mendidik, bukan membedakan status." },
+                    { text: "C. Menciptakan konflik kelas", correct: false, feedback: "Justru norma dibuat untuk mencegah konflik." }
+                ]
+            },
+            xpReward: 100,
+            badge: { id: "b3", name: "Norm Investigator", icon: "" }
+        }
+    ];
+
+    const KNOWLEDGE_HUB = [
+        {
+            title: "1. Hakikat Sosiologi",
+            content: "Sosiologi berasal dari kata Socius (kawan) dan Logos (ilmu). Merupakan ilmu yang mengkaji hubungan antarmanusia, struktur, dan perubahan sosial secara empiris, teoritis, kumulatif, dan non-etis."
+        },
+        {
+            title: "2. Interaksi Sosial",
+            content: "Syarat terjadinya interaksi adalah adanya <strong>Kontak Sosial</strong> dan <strong>Komunikasi</strong>. Bentuknya terbagi dua: Asosiatif (Kerjasama, Akomodasi, Asimilasi) dan Disosiatif (Persaingan, Kontravensi, Konflik)."
+        },
+        {
+            title: "3. Nilai dan Norma",
+            content: "Nilai adalah konsepsi abstrak tentang apa yang dianggap baik/buruk. Norma adalah wujud nyata dari nilai berupa aturan bertingkah laku yang dilengkapi dengan sanksi tegas (Agama, Kesusilaan, Kesopanan, Hukum)."
+        }
+    ];
+
+    let mockLeaderboard = [
+        { name: "Sherlock M.", xp: 350 },
+        { name: "Enola H.", xp: 280 },
+        { name: "Conan E.", xp: 150 },
+        { name: "Nancy D.", xp: 120 }
+    ];
+
+    // --- BACKEND SYNC FUNCTIONS ---
+    function sendDataToSheet() {
+        if (GAS_URL === "URL_GAS_ANDA_DISINI") return; // Skip if URL not configured yet
+
+        let correctCount = 0;
+        let incorrectCount = 0;
+        let detailAnswers = [];
+
+        MISSIONS.forEach(m => {
+            const userAns = appState.sessionAnswers[m.id];
+            if (userAns) {
+                if (userAns.isCorrect) correctCount++;
+                else incorrectCount++;
+                detailAnswers.push(`[${m.title}] Jawab: ${userAns.selectedText} (${userAns.isCorrect ? 'Benar' : 'Salah'})`);
+            } else {
+                detailAnswers.push(`[${m.title}] Tidak dijawab`);
+            }
+        });
+
+        const payload = {
+            timestamp: new Date().toISOString(),
+            name: appState.currentUser.name,
+            class: appState.currentUser.class,
+            correctCount: correctCount,
+            incorrectCount: incorrectCount,
+            detailAnswers: detailAnswers.join("; "),
+            questions: MISSIONS.map(m => ({
+                id: m.id,
+                title: m.title,
+                question: m.challenge.question,
+                options: m.challenge.options.map(o => o.text).join(" | ")
+            }))
+        };
+
+        fetch(GAS_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        }).catch(err => console.error("Sync error:", err));
+    }
+
+    // --- 2. SYSTEM FUNCTIONS ---
+    function showScreen(screenId) {
+        const screens = ['screen-cover', 'screen-setup', 'screen-map', 'screen-mission', 'screen-hub', 'screen-profile'];
+        screens.forEach(id => document.getElementById(id).classList.add('hidden'));
+        
+        const target = document.getElementById(screenId);
+        if (target) {
+            target.classList.remove('hidden');
+            target.classList.remove('slide-up');
+            void target.offsetWidth;
+            target.classList.add('slide-up');
+        }
+
+        const topNav = document.getElementById('top-nav');
+        if (screenId === 'screen-cover' || screenId === 'screen-setup') {
+            topNav.classList.add('hidden');
+        } else {
+            topNav.classList.remove('hidden');
+        }
+
+        const bottomNav = document.getElementById('bottom-nav');
+        if (screenId === 'screen-cover' || screenId === 'screen-setup' || screenId === 'screen-mission') {
+            bottomNav.classList.add('hidden');
+        } else {
+            bottomNav.classList.remove('hidden');
+            updateBottomNavState(screenId);
+        }
+
+        if (screenId === 'screen-map') renderMap();
+        if (screenId === 'screen-hub') renderHub();
+        if (screenId === 'screen-profile') renderProfile();
+
+        window.scrollTo(0, 0);
+    }
+
+    function updateBottomNavState(activeScreen) {
+        ['map', 'hub', 'profile'].forEach(id => {
+            const btn = document.getElementById(`nav-btn-${id}`);
+            if(btn) {
+                btn.className = `nav-btn flex flex-col items-center justify-center w-16 transition ${activeScreen === `screen-${id}` ? 'text-sage-600 scale-110' : 'text-slate-400 hover:text-sage-500'}`;
+            }
+        });
+    }
+
+    function showModal(title, desc) {
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-desc').innerHTML = desc;
+        const modal = document.getElementById('custom-modal');
+        const content = document.getElementById('modal-content');
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            content.classList.remove('scale-95');
+            content.classList.add('scale-100');
+        }, 10);
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('custom-modal');
+        const content = document.getElementById('modal-content');
+        content.classList.remove('scale-100');
+        content.classList.add('scale-95');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    }
+
+    function saveProfile() {
+        const name = document.getElementById('input-name').value.trim();
+        const cls = document.getElementById('input-class').value;
+        
+        if (!name || !cls) {
+            showModal("Data Tidak Lengkap", "Detektif harus memasukkan Nama dan Kelas sebelum bertugas.");
+            return;
+        }
+        
+        appState.currentUser.name = name;
+        appState.currentUser.class = cls;
+        updateTopNav();
+        showScreen('screen-map');
+        
+        setTimeout(() => {
+            showModal("Selamat Datang, Detektif!", `Halo ${name}, selamat bergabung di Biro Investigasi Sosial. Selesaikan misi di peta untuk naik level.`);
+        }, 500);
+    }
+
+    function updateTopNav() {
+        document.getElementById('nav-player-name').innerText = appState.currentUser.name || 'Detektif Muda';
+        document.getElementById('nav-player-level').innerText = appState.currentUser.level;
+        document.getElementById('nav-player-xp').innerText = `${appState.currentUser.xp} XP`;
+    }
+
+    // --- 3. ADVENTURE MAP LOGIC ---
+    function renderMap() {
+        const container = document.getElementById('adventure-map-container');
+        container.innerHTML = '';
+
+        MISSIONS.forEach((m, index) => {
+            if (index > 0) {
+                const prevMission = MISSIONS[index - 1];
+                m.locked = !appState.currentUser.completedMissions.includes(prevMission.id);
+            }
+
+            const isCompleted = appState.currentUser.completedMissions.includes(m.id);
+            const alignLeft = index % 2 === 0;
+            
+            let nodeClass = m.locked ? "bg-slate-200 text-slate-400 border-slate-300" : 
+                           isCompleted ? "bg-gold-400 text-white border-gold-500 shadow-lg" : 
+                           "bg-navy-700 text-white border-navy-800 shadow-xl pulse-node cursor-pointer";
+            
+            let iconClass = m.locked ? "fa-lock" : (isCompleted ? "fa-check" : m.icon);
+
+            const nodeHTML = `
+                <div class="map-line relative flex items-center justify-${alignLeft ? 'start' : 'end'} mb-16 px-4">
+                    <div class="absolute ${alignLeft ? 'left-4' : 'right-4'} top-1/2 transform -translate-y-1/2 w-16 h-16 rounded-full border-4 flex items-center justify-center text-2xl z-10 ${nodeClass}" 
+                         ${!m.locked && !isCompleted ? `onclick="startMission('${m.id}')"` : ''}
+                         ${isCompleted ? `onclick="showModal('Misi Selesai', 'Anda telah menyelesaikan misi ini.')"` : ''}
+                         ${m.locked ? `onclick="showModal('Area Terkunci', 'Selesaikan misi sebelumnya untuk membuka kasus ini.')"` : ''}>
+                        <i class="fa-solid ${iconClass}"></i>
+                    </div>
+                    <div class="w-[60%] ${alignLeft ? 'ml-[70px] text-left' : 'mr-[70px] text-right'}">
+                        <span class="text-[10px] font-bold text-sage-500 uppercase tracking-wider block">Level ${m.level}</span>
+                        <h4 class="font-bold text-navy-800 text-sm leading-tight">${m.title}</h4>
+                        ${m.locked ? `<p class="text-[10px] text-slate-400 mt-0.5">Terkunci</p>` : ''}
+                        ${isCompleted ? `<span class="inline-block mt-1 bg-gold-100 text-gold-600 text-[9px] px-2 py-0.5 rounded-full font-bold border border-gold-300">Selesai</span>` : ''}
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', nodeHTML);
+        });
+    }
+
+    // --- 4. MISSION LOGIC ---
+    function startMission(id) {
+        appState.currentMissionId = id;
+        const m = MISSIONS.find(x => x.id === id);
+        
+        document.getElementById('mission-badge').innerText = `Level ${m.level}`;
+        document.getElementById('mission-title').innerText = m.title;
+        document.getElementById('mission-icon').className = `fa-solid ${m.icon} text-5xl text-gold-400 relative z-10 drop-shadow-md`;
+        document.getElementById('mission-story').innerText = m.story;
+        document.getElementById('mission-theory').innerHTML = m.theory;
+        document.getElementById('mission-question').innerText = m.challenge.question;
+        
+        const optContainer = document.getElementById('mission-options');
+        optContainer.innerHTML = '';
+        m.challenge.options.forEach((opt, idx) => {
+            optContainer.innerHTML += `
+                <button onclick="checkMissionAnswer(${idx})" class="w-full text-left bg-slate-50 hover:bg-slate-100 border border-slate-200 p-4 rounded-xl text-sm text-navy-800 font-medium transition flex items-center justify-between group">
+                    <span>${opt.text}</span>
+                    <i class="fa-solid fa-circle-chevron-right text-slate-300 group-hover:text-sage-500"></i>
+                </button>
+            `;
+        });
+
+        showScreen('screen-mission');
+    }
+
+    function checkMissionAnswer(optIdx) {
+        const m = MISSIONS.find(x => x.id === appState.currentMissionId);
+        const opt = m.challenge.options[optIdx];
+
+        // Simpan jawaban siswa untuk sesi ini
+        appState.sessionAnswers[m.id] = {
+            selectedText: opt.text,
+            isCorrect: opt.correct
+        };
+
+        if (opt.correct) {
+            appState.currentUser.xp += m.xpReward;
+            appState.currentUser.completedMissions.push(m.id);
+            updateTopNav();
+            
+            // Jika semua misi selesai, kirim data ke Google Sheets
+            if (appState.currentUser.completedMissions.length === MISSIONS.length) {
+                sendDataToSheet();
+            }
+
+            showRewardOverlay(m);
+        } else {
+            showModal("Analisis Keliru", opt.feedback + "<br><br><em>Coba baca ulang Catatan Investigasi.</em>");
+        }
+    }
+
+    function showRewardOverlay(mission) {
+        document.getElementById('reward-title').innerText = "MISI SELESAI!";
+        document.getElementById('reward-desc').innerHTML = `Luar biasa, analisis Anda tepat!<br><span class="font-bold text-gold-400">+${mission.xpReward} XP</span> didapatkan.`;
+        
+        const fallbackIcon = `https://placehold.co/200x200/f59e0b/ffffff?text=${mission.badge.name.replace(' ', '+')}`;
+        document.getElementById('reward-icon').src = mission.badge.icon || fallbackIcon;
+
+        const overlay = document.getElementById('reward-overlay');
+        overlay.classList.remove('hidden');
+    }
+
+    function closeReward() {
+        document.getElementById('reward-overlay').classList.add('hidden');
+        
+        const newLevel = Math.floor(appState.currentUser.xp / 100) + 1;
+        if(newLevel > appState.currentUser.level) {
+            appState.currentUser.level = newLevel;
+            updateTopNav();
+            setTimeout(() => {
+                showModal("Level Up!", `Selamat! Keahlian detektif sosialmu meningkat ke Level ${newLevel}.`);
+            }, 400);
+        }
+
+        showScreen('screen-map');
+    }
+
+    // --- 5. KNOWLEDGE HUB LOGIC ---
+    function renderHub() {
+        const container = document.getElementById('hub-container');
+        container.innerHTML = '';
+        
+        KNOWLEDGE_HUB.forEach((item, i) => {
+            container.innerHTML += `
+                <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                    <button onclick="toggleAccordion('acc-${i}')" class="w-full text-left p-4 flex justify-between items-center focus:outline-none bg-slate-50 hover:bg-slate-100 transition">
+                        <span class="font-bold text-navy-800 text-sm">${item.title}</span>
+                        <i id="acc-icon-${i}" class="fa-solid fa-chevron-down text-slate-400 transition-transform"></i>
+                    </button>
+                    <div id="acc-${i}" class="hidden p-4 pt-2 text-sm text-slate-600 leading-relaxed border-t border-slate-100">
+                        ${item.content}
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function toggleAccordion(id) {
+        const el = document.getElementById(id);
+        const icon = document.getElementById(id.replace('acc-', 'acc-icon-'));
+        
+        if (el.classList.contains('hidden')) {
+            el.classList.remove('hidden');
+            icon.classList.add('rotate-180');
+        } else {
+            el.classList.add('hidden');
+            icon.classList.remove('rotate-180');
+        }
+    }
+
+    // --- 6. PROFILE & LEADERBOARD LOGIC ---
+    function renderProfile() {
+        document.getElementById('profile-name').innerText = appState.currentUser.name;
+        document.getElementById('profile-class').innerText = `Kelas ${appState.currentUser.class} | Detektif Muda`;
+        document.getElementById('profile-level-badge').innerText = appState.currentUser.level;
+        
+        const currentLevelXP = (appState.currentUser.level - 1) * 100;
+        const nextLevelXP = appState.currentUser.level * 100;
+        const progressPct = ((appState.currentUser.xp - currentLevelXP) / 100) * 100;
+        
+        document.getElementById('profile-xp-text').innerText = `${appState.currentUser.xp} / ${nextLevelXP} XP`;
+        setTimeout(() => {
+            document.getElementById('profile-xp-bar').style.width = `${progressPct}%`;
+        }, 100);
+
+        const badgeContainer = document.getElementById('badges-container');
+        badgeContainer.innerHTML = '';
+        
+        MISSIONS.forEach(m => {
+            const isUnlocked = appState.currentUser.completedMissions.includes(m.id);
+            const bgClass = isUnlocked ? "bg-gold-50 border-gold-200 text-gold-500" : "bg-slate-50 border-slate-200 text-slate-300 grayscale opacity-60";
+            
+            badgeContainer.innerHTML += `
+                <div class="flex flex-col items-center text-center group cursor-help" onclick="showModal('${m.badge.name}', 'Lencana ini didapatkan setelah menyelesaikan misi: ${m.title}')">
+                    <div class="w-12 h-12 rounded-full border-2 ${bgClass} flex items-center justify-center text-xl mb-1 shadow-sm transition group-hover:scale-110">
+                        <i class="fa-solid ${m.icon}"></i>
+                    </div>
+                    <span class="text-[8px] font-bold ${isUnlocked ? 'text-navy-800' : 'text-slate-400'} leading-tight">${m.badge.name}</span>
+                </div>
+            `;
+        });
+
+        let fullLeaderboard = [...mockLeaderboard];
+        const userIndex = fullLeaderboard.findIndex(u => u.name === appState.currentUser.name);
+        if(userIndex >= 0) {
+            fullLeaderboard[userIndex].xp = appState.currentUser.xp;
+        } else if (appState.currentUser.name) {
+            fullLeaderboard.push({ name: appState.currentUser.name + " (Anda)", xp: appState.currentUser.xp, isUser: true });
+        }
+        
+        fullLeaderboard.sort((a, b) => b.xp - a.xp);
+
+        const lbTable = document.getElementById('leaderboard-table');
+        lbTable.innerHTML = '';
+        fullLeaderboard.forEach((player, idx) => {
+            let rankVisual = `${idx + 1}`;
+            if(idx === 0) rankVisual = '<i class="fa-solid fa-crown text-gold-500 text-lg drop-shadow"></i>';
+            else if(idx === 1) rankVisual = '<i class="fa-solid fa-medal text-slate-400 text-lg"></i>';
+            else if(idx === 2) rankVisual = '<i class="fa-solid fa-medal text-amber-600 text-lg"></i>';
+
+            const rowClass = player.isUser ? "bg-sage-50/50 font-bold" : "";
+
+            lbTable.innerHTML += `
+                <tr class="${rowClass}">
+                    <td class="px-4 py-3 text-center font-display font-semibold text-navy-800">${rankVisual}</td>
+                    <td class="px-4 py-3 text-navy-800 flex items-center gap-2">
+                        ${player.isUser ? '<div class="w-2 h-2 rounded-full bg-sage-500"></div>' : ''}
+                        ${player.name}
+                    </td>
+                    <td class="px-4 py-3 text-right text-sage-600 font-bold">${player.xp}</td>
+                </tr>
+            `;
+        });
+    }
+</script>
